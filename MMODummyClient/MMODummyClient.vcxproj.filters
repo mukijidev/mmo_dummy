@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{37f93158-f0fb-4eac-984d-1b6d8c6cb4f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\DataStructure">
+      <UniqueIdentifier>{a65e3544-5ef1-4e3a-8d8b-87511a293c0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Network">
+      <UniqueIdentifier>{23659183-f5b6-4ec3-aa95-1ff1c21a6b3b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Type">
+      <UniqueIdentifier>{02c7054f-cd0d-424c-bd60-25090d84e1a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Util">
+      <UniqueIdentifier>{bfa3107f-ccbc-48d0-806b-0ae99afc3bcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\DataStructure\Header">
+      <UniqueIdentifier>{b6e3bb31-8ae4-4863-9639-4ef60a9950e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\DataStructure\Source">
+      <UniqueIdentifier>{cb105a76-3ff0-4037-b24a-1fdce38f66e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Network\Header">
+      <UniqueIdentifier>{b4140a74-6097-4d47-8833-ba623aad183b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Network\Source">
+      <UniqueIdentifier>{9e633038-cfc1-441b-b4f7-c0e11f0cf190}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Util\Header">
+      <UniqueIdentifier>{7d747efd-a947-482b-aa67-30497e9943a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\Util\Source">
+      <UniqueIdentifier>{92855330-ed05-4ff4-a6bd-589430a6eae0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DummyClient">
+      <UniqueIdentifier>{e43cd483-ba74-4c18-ab31-c0186aabe40a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DummyClient\Header">
+      <UniqueIdentifier>{6af1947d-5189-4ec7-8b15-5a812ca682af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DummyClient\Source">
+      <UniqueIdentifier>{7cefe837-4bd9-4278-80de-9d0557f9cb0b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Type.cpp">
+      <Filter>lib\Type</Filter>
+    </ClCompile>
+    <ClCompile Include="TlsObjectPool.cpp">
+      <Filter>lib\DataStructure\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="CpuUsage.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Log.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="PerformanceMonitor.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Profiler.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="TextParser.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Util.cpp">
+      <Filter>lib\Util\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>DummyClient\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DummyThread.cpp">
+      <Filter>DummyClient\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Dummy.cpp">
+      <Filter>DummyClient\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ChattingPacketMaker.cpp">
+      <Filter>DummyClient\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePacketMaker.cpp">
+      <Filter>DummyClient\Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Type.h">
+      <Filter>lib\Type</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeObjectPool.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeQueue.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeStack.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="LockGuard.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Log.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectPool.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="RingBuffer.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="SerializeBuffer.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="TlsObjectPool.h">
+      <Filter>lib\DataStructure\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>lib\Util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="CpuUsage.h">
+      <Filter>lib\Util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="PerformanceMonitor.h">
+      <Filter>lib\Util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Profiler.h">
+      <Filter>lib\Util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="TextParser.h">
+      <Filter>lib\Util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketHeader.h">
+      <Filter>lib\Network\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="DummyThread.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Dummy.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ChattingPacketMaker.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePacketMaker.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="GameData.h">
+      <Filter>DummyClient\Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
