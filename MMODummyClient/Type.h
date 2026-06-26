@@ -7,6 +7,7 @@
 #define NICKNAME_LEN 20
 #define PASS_LEN 20
 #define PI 3.141592653589
+#define IP_LEN 16
 
 
 class CPacket;

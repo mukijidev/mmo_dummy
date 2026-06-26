@@ -1,5 +1,6 @@
 #pragma once
 #include "Type.h"
+#include "Packet.h"
 #include "RingBuffer.h"
 #include <unordered_map>
 
@@ -10,7 +11,10 @@ enum DummyState
 	//연결 끊어진 상태에서 connect하고
 	DS_DISCONNECTED,
 
-    //connect 상태에서 login하고
+	//로그인 부터 connect
+	DS_LOGIN_CONNECTED,
+
+    //로그인 끊고 게임 connect
 	DS_CONNECTED,
 
 	//login 상태에서 characterlist요청하고
@@ -36,7 +40,7 @@ class Dummy
 
 private:
 	Dummy(int dummyId);
-	bool Connect();
+	//bool Connect();
 	void Disconnect();
 	void SendProcess();
 	void RecvProcess();
@@ -54,11 +58,23 @@ private:
 
 private:
 	const WCHAR* serverIP = L"127.0.0.1";
-	uint16 serverPort = 10303;
+	uint16 loginServerPort = 10301;
+	int64 _accountNo = 0;
+	char _authToken[SESSION_KEY_LEN];
+	WCHAR _gameServerIP[IP_LEN] = L"127.0.0.1";
+	WCHAR _chatServerIP[IP_LEN] = L"127.0.0.1";
+	uint16 _gameServerPort = 10303;
+	uint16 _chatServerPort = 10302;
 
 private:
+	bool ConnectTo(const WCHAR* ip, uint16 port);
+	void RequestLoginToLoginServer();
+	void RequestEnterGameServer();
+	//정리
 	void RequestConnect();
 	void RequestDisconnect();
+
+private:
 	void RequestLogin();
 	void RequestFieldMove();
 	void RequestMove();
@@ -68,6 +84,8 @@ private:
 	void RequestSelectCharacter();
 
 private:
+	void HandleLoginResult(CPacket* packet);
+	//
 	void HandleLogin(CPacket* packet);
 	void HandlePlayerList(CPacket* packet);
 	void HandleSelectPlayer(CPacket* packet);
@@ -76,7 +94,7 @@ private:
 
 private:
 	DummyState _state;
-	int _playerId;
+	int64 _playerId;
 	int _dummyId;
 	//자신의 위치는 언제 업데이트할까? 그냥 서버에서 current pos 받을때마다?
 	FVector _currentLocation;

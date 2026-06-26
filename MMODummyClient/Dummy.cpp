@@ -14,6 +14,8 @@ Dummy::Dummy(int dummyId)
 {
 	_dummyId = dummyId;
 	_state = DS_DISCONNECTED;
+
+	bConnected = false;
 }
 
 void Dummy::HandlePacket(CPacket* packet)
@@ -23,6 +25,13 @@ void Dummy::HandlePacket(CPacket* packet)
 
 	switch (packetType)
 	{
+		//로그인서버
+		case PACKET_SC_LOGIN_RES_LOGIN:
+		{
+			HandleLoginResult(packet);
+		}
+		break;
+
 		//게임서버 로그인
 		case PACKET_SC_GAME_RES_LOGIN:
 		{
@@ -30,7 +39,6 @@ void Dummy::HandlePacket(CPacket* packet)
 			//채팅서버 로그인 하고
 			//게임서버 필드 이동
 			HandleLogin(packet);
-	
 		}
 		break;
 
@@ -159,10 +167,16 @@ void Dummy::Run()
 		}
 		break;
 
+		case DS_LOGIN_CONNECTED:
+		{
+			RequestLoginToLoginServer();
+		}
+		break;
+
 		case DS_CONNECTED:
 		{
 			//연결된 상태면 로그인 하고
-			RequestLogin();
+			RequestEnterGameServer();
 		}
 		break;
 
@@ -188,7 +202,7 @@ void Dummy::Run()
 		case DS_IN_FIELD:
 		{
 			//필드까지 온상태에서 랜덤행동
-			RequestMove();
+			//RequestMove();
 			/*RequestAttack();
 			RequestChat();*/
 		}
@@ -200,12 +214,90 @@ void Dummy::Run()
 }
 
 
+bool Dummy::ConnectTo(const WCHAR* ip, uint16 port)
+{
+	//	//Connect할대마다 RecvQueue랑 SendQueue 초기화 한번씩 해주고
+	_recvQueue.ClearBuffer();
+	_sendQueue.ClearBuffer();
+	
+	int retVal;
+	
+	memset(&_serverAddr, 0, sizeof(_serverAddr));
+	_serverAddr.sin_family = AF_INET;
+	_serverAddr.sin_port = htons(port);
+	InetPtonW(AF_INET, ip, &_serverAddr.sin_addr);
+	_serverPort = port;
+	
+	_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	
+	if (_socket == INVALID_SOCKET)
+	{
+		wprintf(L"socket create failed\n");
+		return false;
+	}
+	
+	
+	retVal = connect(_socket, (SOCKADDR*)&_serverAddr, sizeof(_serverAddr));
+	if (retVal == SOCKET_ERROR)
+	{
+		int errorCode = WSAGetLastError();
+		wprintf(L"connect failed : %d\n", errorCode);
+		closesocket(_socket);
+		return false;
+	}
+	
+	
+	//non block 소켓으로 전환하고
+	int setNonBlockError;
+	int setNonBlockErrorCode;
+	u_long on = 1;
+	setNonBlockError = ioctlsocket(_socket, FIONBIO, &on);
+	if (setNonBlockError == SOCKET_ERROR)
+	{
+		setNonBlockErrorCode = WSAGetLastError();
+		wprintf(L"set non block failed : %d\n", setNonBlockErrorCode);
+		closesocket(_socket);
+		bConnected = false;
+		return false;
+	}
+	
+	//링거 옵션 적용하고 TIME OUT 없이 바로 fin보내게
+	linger _linger;
+	_linger.l_onoff = 1;
+	_linger.l_linger = 0;
+	setsockopt(_socket, SOL_SOCKET, SO_LINGER, (char*)&_linger, sizeof(_linger));
+	
+	bConnected = true;
+	return true;
+}
+
+void Dummy::RequestLoginToLoginServer()
+{
+	TCHAR id[ID_LEN] = { 0 };
+	TCHAR password[PASS_LEN] = { 0 };
+	wsprintf(id, L"dummy%d", _dummyId);
+	wsprintf(password, L"dummy%d", _dummyId);
+
+	CPacket* packet = CPacket::Alloc();
+	GamePacketMaker::MP_CS_LOGIN_REQ_LOGIN(packet, id, password);
+	SendPacket(packet);
+	_state = DS_WAIT_FOR_REQUEST;
+}
+
+void Dummy::RequestEnterGameServer()
+{
+	CPacket* packet = CPacket::Alloc();
+	GamePacketMaker::MP_CS_GAME_REQ_ENTER(packet, _accountNo, _authToken);
+	SendPacket(packet);
+	_state = DS_WAIT_FOR_REQUEST;
+}
+
 void Dummy::RequestConnect()
 {
-	if(Connect())
+	if (ConnectTo(serverIP, loginServerPort))
 	{
-		//연결 성공 했으면
-		_state = DS_CONNECTED;
+		//연결 성공했으면
+		_state = DS_LOGIN_CONNECTED;
 	}
 }
 
@@ -214,22 +306,11 @@ void Dummy::RequestDisconnect()
 	Disconnect();
 }
 
-void Dummy::RequestLogin()
-{
-	printf("request login\n");
-	TCHAR id[16];
-	TCHAR password[16];
-	wsprintf(id, L"dummy%d", _dummyId);
-	wsprintf(password, L"dummy%d", _dummyId);
 
-	CPacket* requestLoginPacket = CPacket::Alloc();
-	GamePacketMaker::MP_CS_REQ_LOGIN(requestLoginPacket, id, password);
-	SendPacket(requestLoginPacket);
-	_state = DS_WAIT_FOR_REQUEST;
-}
 
 void Dummy::RequestFieldMove()
 {
+	printf("[%d] req field move (lobby)\n", _dummyId);
 	//TODO: 필드이동요청
 	//나중에는 채팅서버까지 필드이동 요청 같이 해야함
 	uint16 fieldId = FIELD_LOBBY;
@@ -292,6 +373,7 @@ void Dummy::RequestCharacterList()
 
 void Dummy::RequestSelectCharacter()
 {
+	printf("[%d] req select (id = %lld)\n", _dummyId, _playerId);
 	CPacket* packet = CPacket::Alloc();
 	// 0번째 캐릭터 선책
 	GamePacketMaker::MP_CS_REQ_SELECT_PLAYER(packet, _playerId);
@@ -314,6 +396,36 @@ float Dummy::GetDistance(FVector& Dest)
 	return sqrt(x * x + y * y);
 }
 
+void Dummy::HandleLoginResult(CPacket* packet)
+{
+	uint8 status;
+	*packet >> _accountNo >> status;
+
+	if (status == 0)
+	{
+		printf("login server login faield");
+		Disconnect();
+		_state = DS_DISCONNECTED;
+		return;
+	}
+
+	packet->GetData((char*)_gameServerIP, IP_LEN * sizeof(WCHAR));
+	*packet >> _gameServerPort;
+	packet->GetData((char*)_chatServerIP, IP_LEN * sizeof(WCHAR));
+	*packet >> _chatServerPort;
+	packet->GetData(_authToken, SESSION_KEY_LEN);
+
+	Disconnect();
+	if (ConnectTo(_gameServerIP, _gameServerPort))
+	{
+		_state = DS_CONNECTED;
+	}
+	else
+	{
+		_state = DS_DISCONNECTED;
+	}
+}
+
 
 void Dummy::HandleLogin(CPacket* packet)
 {
@@ -334,6 +446,8 @@ void Dummy::HandleLogin(CPacket* packet)
 	if (status == 0)
 	{
 		printf("login failed\n");
+		Disconnect();
+		_state = DS_DISCONNECTED;
 	}
 }
 
@@ -351,7 +465,7 @@ void Dummy::HandlePlayerList(CPacket* packet)
 
 	*packet >> playerInfo;
 	_playerId = playerInfo.PlayerID;
-	printf("dummy playerId : %d", _playerId);
+	printf("dummy playerId : %lld", _playerId);
 
 	// state change to DS_RES_CHARACTER_LIST
 	// which means already got character list
@@ -361,6 +475,7 @@ void Dummy::HandlePlayerList(CPacket* packet)
 
 void Dummy::HandleSelectPlayer(CPacket* packet)
 {
+	printf("[%d] select  -> field move\n", _dummyId);
 	uint8 status;
 	*packet >> status;
 
@@ -382,6 +497,9 @@ void Dummy::HandleSpawnMyCharacter(CPacket* packet)
 	_state = DS_IN_FIELD;
 	_currentLocation = SpawnLocation;
 	_currentRotation = SpawnRotation;
+	printf("[%d] spawned  (%.0f,%.0f) -> IN_FIELD\n", _dummyId, _currentLocation.Y, _currentLocation.X);
+
+	
 }
 
 void Dummy::HandleCharacterMove(CPacket* packet)
@@ -402,64 +520,7 @@ void Dummy::HandleCharacterMove(CPacket* packet)
 }
 
 
-bool Dummy::Connect()
-{
-	//Connect할대마다 RecvQueue랑 SendQueue 초기화 한번씩 해주고
-	_recvQueue.ClearBuffer();
-	_sendQueue.ClearBuffer();
 
-	int retVal;
-
-	memset(&_serverAddr, 0, sizeof(_serverAddr));
-	_serverAddr.sin_family = AF_INET;
-	_serverAddr.sin_port = htons(serverPort);
-	InetPtonW(AF_INET, serverIP, &_serverAddr.sin_addr);
-	_serverPort = serverPort;
-
-	_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	if (_socket == INVALID_SOCKET)
-	{
-		wprintf(L"socket create failed\n");
-		return false;
-	}
-
-
-	retVal = connect(_socket, (SOCKADDR*)&_serverAddr, sizeof(_serverAddr));
-	if (retVal == SOCKET_ERROR)
-	{
-		int errorCode = WSAGetLastError();
-		wprintf(L"connect failed : %d\n", errorCode);
-		closesocket(_socket);
-		return false;
-	}
-
-
-	//non block 소켓으로 전환하고
-	int setNonBlockError;
-	int setNonBlockErrorCode;
-	u_long on = 1;
-	setNonBlockError = ioctlsocket(_socket, FIONBIO, &on);
-	if (setNonBlockError == SOCKET_ERROR)
-	{
-		setNonBlockErrorCode = WSAGetLastError();
-		wprintf(L"set non block failed : %d\n", setNonBlockErrorCode);
-		closesocket(_socket);
-		bConnected = false;
-		return false;
-	}
-
-	//링거 옵션 적용하고 TIME OUT 없이 바로 fin보내게
-	linger _linger;
-	_linger.l_onoff = 1;
-	_linger.l_linger = 0;
-	setsockopt(_socket, SOL_SOCKET, SO_LINGER, (char*)&_linger, sizeof(_linger));
-
-	bConnected = true;
-	_state = DS_CONNECTED;
-
-	return true;
-}
 
 void Dummy::Disconnect()
 {
@@ -575,3 +636,78 @@ void Dummy::RecvProcess()
 		}
 	}
 }
+
+
+//void Dummy::RequestLogin()
+//{
+//	printf("request login\n");
+//	TCHAR id[16];
+//	TCHAR password[16];
+//	wsprintf(id, L"dummy%d", _dummyId);
+//	wsprintf(password, L"dummy%d", _dummyId);
+//
+//	CPacket* requestLoginPacket = CPacket::Alloc();
+//	GamePacketMaker::MP_CS_REQ_LOGIN(requestLoginPacket, id, password);
+//	SendPacket(requestLoginPacket);
+//	_state = DS_WAIT_FOR_REQUEST;
+//}
+//
+//
+//bool Dummy::Connect()
+//{
+//	//Connect할대마다 RecvQueue랑 SendQueue 초기화 한번씩 해주고
+//	_recvQueue.ClearBuffer();
+//	_sendQueue.ClearBuffer();
+//
+//	int retVal;
+//
+//	memset(&_serverAddr, 0, sizeof(_serverAddr));
+//	_serverAddr.sin_family = AF_INET;
+//	_serverAddr.sin_port = htons(serverPort);
+//	InetPtonW(AF_INET, serverIP, &_serverAddr.sin_addr);
+//	_serverPort = serverPort;
+//
+//	_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+//
+//	if (_socket == INVALID_SOCKET)
+//	{
+//		wprintf(L"socket create failed\n");
+//		return false;
+//	}
+//
+//
+//	retVal = connect(_socket, (SOCKADDR*)&_serverAddr, sizeof(_serverAddr));
+//	if (retVal == SOCKET_ERROR)
+//	{
+//		int errorCode = WSAGetLastError();
+//		wprintf(L"connect failed : %d\n", errorCode);
+//		closesocket(_socket);
+//		return false;
+//	}
+//
+//
+//	//non block 소켓으로 전환하고
+//	int setNonBlockError;
+//	int setNonBlockErrorCode;
+//	u_long on = 1;
+//	setNonBlockError = ioctlsocket(_socket, FIONBIO, &on);
+//	if (setNonBlockError == SOCKET_ERROR)
+//	{
+//		setNonBlockErrorCode = WSAGetLastError();
+//		wprintf(L"set non block failed : %d\n", setNonBlockErrorCode);
+//		closesocket(_socket);
+//		bConnected = false;
+//		return false;
+//	}
+//
+//	//링거 옵션 적용하고 TIME OUT 없이 바로 fin보내게
+//	linger _linger;
+//	_linger.l_onoff = 1;
+//	_linger.l_linger = 0;
+//	setsockopt(_socket, SOL_SOCKET, SO_LINGER, (char*)&_linger, sizeof(_linger));
+//
+//	bConnected = true;
+//	_state = DS_CONNECTED;
+//
+//	return true;
+//}

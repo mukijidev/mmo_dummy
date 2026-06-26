@@ -4,22 +4,22 @@
 #include "SerializeBuffer.h"
 #include <stdio.h>
 
-void GamePacketMaker::MP_CS_REQ_LOGIN(CPacket* Packet, TCHAR* id, TCHAR* password)
-{
-	NetHeader Header;
-	Header._code = GamePacketCode;
-	Header._randKey = rand();
-
-	Packet->PutData((char*)&Header, sizeof(NetHeader));
-	uint16 type = PACKET_CS_GAME_REQ_LOGIN;
-
-	*Packet << type;
-	Packet->PutData((char*)id, sizeof(TCHAR) * ID_LEN);
-	Packet->PutData((char*)password, sizeof(TCHAR) * PASS_LEN);
-
-	uint16 len = (uint16)(Packet->GetDataSize() - sizeof(NetHeader));
-	memcpy(Packet->GetBufferPtr() + NET_HEADER_SIZE_INDEX, (void*)&len, sizeof(uint16));
-}
+//void GamePacketMaker::MP_CS_REQ_LOGIN(CPacket* Packet, TCHAR* id, TCHAR* password)
+//{
+//	NetHeader Header;
+//	Header._code = GamePacketCode;
+//	Header._randKey = rand();
+//
+//	Packet->PutData((char*)&Header, sizeof(NetHeader));
+//	uint16 type = PACKET_CS_GAME_REQ_LOGIN;
+//
+//	*Packet << type;
+//	Packet->PutData((char*)id, sizeof(TCHAR) * ID_LEN);
+//	Packet->PutData((char*)password, sizeof(TCHAR) * PASS_LEN);
+//
+//	uint16 len = (uint16)(Packet->GetDataSize() - sizeof(NetHeader));
+//	memcpy(Packet->GetBufferPtr() + NET_HEADER_SIZE_INDEX, (void*)&len, sizeof(uint16));
+//}
 
 void GamePacketMaker::MP_CS_REQ_FIELD_MOVE(CPacket* Packet, uint16& fieldID)
 {
@@ -137,5 +137,37 @@ void GamePacketMaker::MP_CS_REQ_CHARACTER_MOVE(CPacket* packet, FVector& Destina
 
 	uint16 len = (uint16)(packet->GetDataSize() - sizeof(NetHeader));
 	memcpy(packet->GetBufferPtr() + NET_HEADER_SIZE_INDEX, (void*)&len, sizeof(uint16));
+}
 
+void GamePacketMaker::MP_CS_LOGIN_REQ_LOGIN(CPacket* packet, TCHAR* id, TCHAR* password)
+{
+	NetHeader Header;
+	Header._code = GamePacketCode;
+	Header._randKey = rand();
+
+	packet->PutData((char*)&Header, sizeof(NetHeader));
+	uint16 type = PACKET_CS_LOGIN_REQ_LOGIN;
+
+	*packet << type;
+	packet->PutData((char*)id, sizeof(TCHAR) * ID_LEN);
+	packet->PutData((char*)password, sizeof(TCHAR) * PASS_LEN);
+
+	uint16 len = (uint16)(packet->GetDataSize() - sizeof(NetHeader));
+	memcpy(packet->GetBufferPtr() + NET_HEADER_SIZE_INDEX, (void*)&len, sizeof(uint16));
+}
+
+void GamePacketMaker::MP_CS_GAME_REQ_ENTER(CPacket* packet, int64 accountNo, const char* token)
+{
+	NetHeader Header;
+	Header._code = GamePacketCode;
+	Header._randKey = rand();
+
+	packet->PutData((char*)&Header, sizeof(NetHeader));
+	uint16 type = PACKET_CS_GAME_REQ_LOGIN;
+
+	*packet << type << accountNo;
+	packet->PutData((char*)token, SESSION_KEY_LEN);
+
+	uint16 len = (uint16)(packet->GetDataSize() - sizeof(NetHeader));
+	memcpy(packet->GetBufferPtr() + NET_HEADER_SIZE_INDEX, (void*)&len, sizeof(uint16));
 }
