@@ -10,6 +10,8 @@
 
 //int64 _downClient = 0;
 
+static const uint32 FIND_PATH_INTERVAL_MS = 10000;
+
 Dummy::Dummy(int dummyId)
 {
 	_dummyId = dummyId;
@@ -121,11 +123,36 @@ void Dummy::HandlePacket(CPacket* packet)
 		}
 		break;
 
+		case PACKET_SC_GAME_SPAWN_MONSTER:
+		{
+			HandleSpawnMonster(packet);
+		}
+		break;
+
 		case PACKET_SC_GAME_MONSTER_MOVE:
 		{
 			// 몬스터 이동
 			// 몬스터 이동 프레임을 돌려야하나?
 			// 몬스터 목적지를 그냥 현재위치로 찍을까
+			HandleMonterMvoe(packet);
+		}
+		break;
+
+		case PACKET_SC_GAME_RES_MONSTER_DEATH:
+		{
+			HandleMonsterDeath(packet);
+		}
+		break;
+
+		case PACKET_SC_GAME_DESPAWN_MONSTER:
+		{
+			HandleDespawnMonster(packet);
+		}
+		break;
+
+		case PACKET_SC_GAME_RES_FIND_PATH:
+		{
+			HandleFindPath(packet);
 		}
 		break;
 
@@ -205,6 +232,7 @@ void Dummy::Run()
 			//RequestMove();
 			/*RequestAttack();
 			RequestChat();*/
+			InFieldAct();
 		}
 		break;
 		
@@ -306,39 +334,94 @@ void Dummy::RequestDisconnect()
 	Disconnect();
 }
 
-
-
 void Dummy::RequestFieldMove()
 {
-	printf("[%d] req field move (lobby)\n", _dummyId);
-	//TODO: 필드이동요청
-	//나중에는 채팅서버까지 필드이동 요청 같이 해야함
-	uint16 fieldId = FIELD_LOBBY;
+	uint16 fields[3] = { FIELD_LOBBY, FIELD_GUARDIAN, FIELD_SPIDER };
+	uint16 fieldId = fields[_dummyId % 3];
+	//fieldId = FIELD_LOBBY; 
+	currentFieldId = fieldId;
+
+
+	printf("[%d] req field move (%s)\n", _dummyId, Util::FieldName(fieldId));
+
 	CPacket* fieldMovePacket = CPacket::Alloc();
 	GamePacketMaker::MP_CS_REQ_FIELD_MOVE(fieldMovePacket, fieldId);
 	SendPacket(fieldMovePacket);
 	_state = DS_WAIT_FOR_REQUEST;
 }
 
-// 더미쓰레드 최소 3초에 작동하게하면
-// 현재위치 기억안해도 되게 일단 코드 작성하고
-void Dummy::RequestMove()
+
+
+void Dummy::RandomMove()
 {
-	float range = 400.0f; // 범위 설정
+	FVector dest = _currentLocation;
+	dest.X = std::clamp(dest.X + (rand() % 800 - 400), 100.0, 11900.0);
+	dest.Y = std::clamp(dest.Y + (rand() % 800 - 400), 100.0, 11900.0);
+	if (RequestMoveTo(dest))
+		_currentLocation = dest;
+}
 
-	FVector RandomDestination = _currentLocation;
-	RandomDestination.X += (rand() % static_cast<int>(range * 2)) - range;
-	RandomDestination.Y += (rand() % static_cast<int>(range * 2)) - range;
+bool Dummy::RequestMoveTo(FVector dest)
+{
+	int now = timeGetTime();
+	if (now - _lastFindPathTime < FIND_PATH_INTERVAL_MS)
+		return false;
 
-	//맵크기 12000 일단 하드코딩
-	RandomDestination.X = std::clamp(RandomDestination.X, (double)100, 11900.0);
-	RandomDestination.Y = std::clamp(RandomDestination.Y, (double)100, 11900.0);
+	_lastFindPathTime = now;
 
+	CPacket* p = CPacket::Alloc();
+	GamePacketMaker::MP_CS_REQ_FIND_PATH(p, dest);
+	SendPacket(p);
+	return true;
+}
 
-	CPacket* movePacket = CPacket::Alloc();
-	GamePacketMaker::MP_CS_REQ_CHARACTER_MOVE(movePacket, RandomDestination, _currentRotation);
-	SendPacket(movePacket);
-	//printf("send request move");
+void Dummy::RequestAttackMonster(int64 monsterId)
+{
+	int now = timeGetTime();
+	if (now - _lastAttackTime < 500)
+		return;
+
+	_lastAttackTime = now;
+	CPacket* pkt = CPacket::Alloc();
+	GamePacketMaker::MP_CS_REQ_CHARACTER_ATTACK(pkt, TYPE_PLAYER, _playerId, TYPE_MONSTER, monsterId);
+	SendPacket(pkt);
+}
+
+//몬스터 근처에 있으면 치고
+//없으면 돌아다니고
+void Dummy::InFieldAct()
+{
+	if (_monsters.empty())
+	{
+		RandomMove();
+		return;
+	}
+
+	int64 targetId = 0;
+	int bestDis2 = 0;
+	bool first = true;
+	for (auto& kv : _monsters)
+	{
+		int dx = (int)(kv.second.pos.X - _currentLocation.X);
+		int dy = (int)(kv.second.pos.Y - _currentLocation.Y);
+		int d2 = dx * dx + dy * dy;
+		if (first || d2 < bestDis2)
+		{
+			first = false;
+			bestDis2 = d2;
+			targetId = kv.first;
+		}
+	}
+
+	if (bestDis2 <= _attackRange * _attackRange)
+	{
+		RequestAttackMonster(targetId);
+	}
+	else
+	{
+		RequestMoveTo(_monsters[targetId].pos);
+	}
+
 }
 
 void Dummy::RequestAttack()
@@ -388,6 +471,7 @@ void Dummy::SendPacket(CPacket* packet)
 	_sendQueue.Enqueue(packet->GetBufferPtr(), packet->GetDataSize());
 	CPacket::Free(packet);
 }
+
 
 float Dummy::GetDistance(FVector& Dest)
 {
@@ -519,6 +603,50 @@ void Dummy::HandleCharacterMove(CPacket* packet)
 	}
 }
 
+void Dummy::HandleSpawnMonster(CPacket* packet)
+{
+	MonsterInfo info;
+	FVector spawnLocation;
+	FRotator spawnRotator;
+	*packet >> info >> spawnLocation >> spawnRotator;
+	_monsters[info.MonsterID] = MonsterSnapshot{ spawnLocation, info.Type };
+}
+
+void Dummy::HandleMonterMvoe(CPacket* packet)
+{
+	int64 monsterId; 
+	FVector currentPos;
+	*packet >> monsterId >> currentPos;
+	auto it = _monsters.find(monsterId);
+	if (it != _monsters.end())
+	{
+		it->second.pos = currentPos;
+	}
+}
+
+void Dummy::HandleDespawnMonster(CPacket* packet)
+{
+	int64 id;
+	*packet >> id;
+	_monsters.erase(id);
+}
+
+void Dummy::HandleMonsterDeath(CPacket* packet)
+{
+	int64 id;
+	*packet >> id;
+	_monsters.erase(id);
+}
+
+void Dummy::HandleFindPath(CPacket* packet)
+{
+	int64 characterNo;
+	FVector currentPos;
+	*packet >> characterNo >> currentPos;
+	if (characterNo == _playerId)
+		_currentLocation = currentPos;
+}
+
 
 
 
@@ -526,6 +654,7 @@ void Dummy::Disconnect()
 {
 	closesocket(_socket);
 	bConnected = false;
+	return;
 }
 
 void Dummy::SendProcess()
@@ -549,9 +678,8 @@ void Dummy::SendProcess()
 		else
 		{
 			wprintf(L"send failed : %d\n", sendErrorCode);
-			closesocket(_socket);
-			bConnected = false;
-			//_downClient++;
+			OnServerDisconnect();
+
 			return;
 		}
 	}
@@ -586,8 +714,7 @@ void Dummy::RecvProcess()
 		else
 		{
 			wprintf(L"recv failed : %d\n", recvErrorCode);
-			closesocket(_socket);
-			bConnected = false;
+			OnServerDisconnect();
 			//_downClient++;
 			return;
 		}
@@ -595,8 +722,7 @@ void Dummy::RecvProcess()
 	else if (recvVal == 0)
 	{
 		wprintf(L"server closed\n");
-		closesocket(_socket);
-		bConnected = false;
+		OnServerDisconnect();
 
 		//fin 받았는데 내가먼저 끊은상황이면
 		//_downClient++;		
@@ -711,3 +837,12 @@ void Dummy::RecvProcess()
 //
 //	return true;
 //}
+
+void Dummy::OnServerDisconnect()
+{
+	Disconnect();
+	_monsters.clear();
+	_state = DS_DISCONNECTED;
+	//_downClient++;
+
+}

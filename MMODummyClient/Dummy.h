@@ -6,6 +6,12 @@
 
 class CPacket;
 
+struct MonsterSnapshot
+{
+	FVector pos;
+	uint16 type;
+};
+
 enum DummyState
 {
 	//연결 끊어진 상태에서 connect하고
@@ -47,6 +53,7 @@ private:
 	void HandlePacket(CPacket* packet);
 	void Run();
 	void SendPacket(CPacket* packet);
+	void OnServerDisconnect();
 
 private:
 	bool bConnected;
@@ -77,11 +84,15 @@ private:
 private:
 	void RequestLogin();
 	void RequestFieldMove();
-	void RequestMove();
+	void RandomMove();
 	void RequestAttack();
 	void RequestChat();
 	void RequestCharacterList();
 	void RequestSelectCharacter();
+	bool RequestMoveTo(FVector dest);
+	void RequestAttackMonster(int64 monsterId);
+	void InFieldAct();
+	
 
 private:
 	void HandleLoginResult(CPacket* packet);
@@ -91,6 +102,12 @@ private:
 	void HandleSelectPlayer(CPacket* packet);
 	void HandleSpawnMyCharacter(CPacket* packet);
 	void HandleCharacterMove(CPacket* packet);
+	
+	void HandleSpawnMonster(CPacket* packet);
+	void HandleMonterMvoe(CPacket* packet);
+	void HandleDespawnMonster(CPacket* packet);
+	void HandleMonsterDeath(CPacket* packet);
+	void HandleFindPath(CPacket* packet);
 
 private:
 	DummyState _state;
@@ -100,15 +117,17 @@ private:
 	FVector _currentLocation;
 	FRotator _currentRotation;
 	float _speed;
-	float _attackRange;
 	int currentFieldId = 0;
 
-
+private:
+	int _attackRange = 250;
+	uint32 _lastAttackTime = 0;
+	uint32 _lastFindPathTime = 0;
 
 private:
 	//나중에 주변 플레이어, 몬스터 공격기능까지 추가하려면 
 	std::unordered_map<int64, Dummy*> _remotePlayers;
-	std::unordered_map<int64, Dummy*> _monsters;
+	std::unordered_map<int64, MonsterSnapshot> _monsters;
 
 private:
 	float GetDistance(FVector& Dest);
