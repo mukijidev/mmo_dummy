@@ -10,7 +10,7 @@
 
 //int64 _downClient = 0;
 
-static const uint32 FIND_PATH_INTERVAL_MS = 10000;
+static const uint32 FIND_PATH_INTERVAL_MS = 1000;
 
 Dummy::Dummy(int dummyId)
 {
@@ -190,7 +190,7 @@ void Dummy::Run()
 		{
 			//연결 끊어진 상태면 연결하고
 			RequestConnect();
-			printf("Requset Connect %d\n", _dummyId);
+			//printf("Requset Connect %d\n", _dummyId);
 		}
 		break;
 
@@ -342,7 +342,7 @@ void Dummy::RequestFieldMove()
 	currentFieldId = fieldId;
 
 
-	printf("[%d] req field move (%s)\n", _dummyId, Util::FieldName(fieldId));
+	//printf("[%d] req field move (%s)\n", _dummyId, Util::FieldName(fieldId));
 
 	CPacket* fieldMovePacket = CPacket::Alloc();
 	GamePacketMaker::MP_CS_REQ_FIELD_MOVE(fieldMovePacket, fieldId);
@@ -357,8 +357,8 @@ void Dummy::RandomMove()
 	FVector dest = _currentLocation;
 	dest.X = std::clamp(dest.X + (rand() % 800 - 400), 100.0, 11900.0);
 	dest.Y = std::clamp(dest.Y + (rand() % 800 - 400), 100.0, 11900.0);
-	if (RequestMoveTo(dest))
-		_currentLocation = dest;
+	RequestMoveTo(dest);
+		
 }
 
 bool Dummy::RequestMoveTo(FVector dest)
@@ -379,7 +379,7 @@ void Dummy::RequestAttackMonster(int64 monsterId)
 {
 	int now = timeGetTime();
 	if (now - _lastAttackTime < 500)
-		return;
+		return;	
 
 	_lastAttackTime = now;
 	CPacket* pkt = CPacket::Alloc();
@@ -412,16 +412,16 @@ void Dummy::InFieldAct()
 			targetId = kv.first;
 		}
 	}
-
 	if (bestDis2 <= _attackRange * _attackRange)
 	{
 		RequestAttackMonster(targetId);
+
+		if (timeGetTime() - _lastFindPathTime > 2000)
+			RequestMoveTo(_monsters[targetId].pos);
 	}
-	else
-	{
+	else {
 		RequestMoveTo(_monsters[targetId].pos);
 	}
-
 }
 
 void Dummy::RequestAttack()
@@ -447,7 +447,7 @@ void Dummy::RequestChat()
 
 void Dummy::RequestCharacterList()
 {
-	printf("request character list\n");
+	//printf("request character list\n");
 	CPacket* packet = CPacket::Alloc();
 	GamePacketMaker::MP_CS_REQ_PLAYER_LIST(packet);
 	SendPacket(packet);
@@ -456,7 +456,7 @@ void Dummy::RequestCharacterList()
 
 void Dummy::RequestSelectCharacter()
 {
-	printf("[%d] req select (id = %lld)\n", _dummyId, _playerId);
+	//printf("[%d] req select (id = %lld)\n", _dummyId, _playerId);
 	CPacket* packet = CPacket::Alloc();
 	// 0번째 캐릭터 선책
 	GamePacketMaker::MP_CS_REQ_SELECT_PLAYER(packet, _playerId);
@@ -522,14 +522,14 @@ void Dummy::HandleLogin(CPacket* packet)
 	if (status == 1)
 	{
 		//게임서버로 접속
-		printf("login suceed\n");
+		//printf("login suceed\n");
 		_state = DS_LOGGINED;
 
 	}
 
 	if (status == 0)
 	{
-		printf("login failed\n");
+		//printf("login failed\n");
 		Disconnect();
 		_state = DS_DISCONNECTED;
 	}
@@ -549,7 +549,7 @@ void Dummy::HandlePlayerList(CPacket* packet)
 
 	*packet >> playerInfo;
 	_playerId = playerInfo.PlayerID;
-	printf("dummy playerId : %lld", _playerId);
+	//printf("dummy playerId : %lld", _playerId);
 
 	// state change to DS_RES_CHARACTER_LIST
 	// which means already got character list
@@ -559,7 +559,7 @@ void Dummy::HandlePlayerList(CPacket* packet)
 
 void Dummy::HandleSelectPlayer(CPacket* packet)
 {
-	printf("[%d] select  -> field move\n", _dummyId);
+	//printf("[%d] select  -> field move\n", _dummyId);
 	uint8 status;
 	*packet >> status;
 
@@ -581,7 +581,7 @@ void Dummy::HandleSpawnMyCharacter(CPacket* packet)
 	_state = DS_IN_FIELD;
 	_currentLocation = SpawnLocation;
 	_currentRotation = SpawnRotation;
-	printf("[%d] spawned  (%.0f,%.0f) -> IN_FIELD\n", _dummyId, _currentLocation.Y, _currentLocation.X);
+	//printf("[%d] spawned  (%.0f,%.0f) -> IN_FIELD\n", _dummyId, _currentLocation.Y, _currentLocation.X);
 
 	
 }
