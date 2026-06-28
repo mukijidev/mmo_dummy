@@ -382,6 +382,14 @@ void Dummy::RequestAttackMonster(int64 monsterId)
 		return;	
 
 	_lastAttackTime = now;
+
+	int32 skillId = 0;      
+	_currentRotation.Yaw = Util::CalculateRotation(_currentLocation, _monsters[monsterId].pos);
+
+	CPacket* skillPkt = CPacket::Alloc();
+	GamePacketMaker::MP_SC_REQ_CHARACTER_SKILL(skillPkt, _currentLocation, _currentRotation, skillId);
+	SendPacket(skillPkt);
+
 	CPacket* pkt = CPacket::Alloc();
 	GamePacketMaker::MP_CS_REQ_CHARACTER_ATTACK(pkt, TYPE_PLAYER, _playerId, TYPE_MONSTER, monsterId);
 	SendPacket(pkt);
@@ -391,6 +399,15 @@ void Dummy::RequestAttackMonster(int64 monsterId)
 //없으면 돌아다니고
 void Dummy::InFieldAct()
 {
+	uint32 timeNow = timeGetTime();
+	for (auto it = _monsters.begin(); it != _monsters.end(); )
+	{
+		if (timeNow - it->second.lastSeen > 7000)  
+			it = _monsters.erase(it);
+		else
+			++it;
+	}
+
 	if (_monsters.empty())
 	{
 		RandomMove();
@@ -412,6 +429,13 @@ void Dummy::InFieldAct()
 			targetId = kv.first;
 		}
 	}
+
+	if (_dummyId < 3)
+	{
+		printf("[d%d] monsters=%d nearest=%lld dist=%.0f\n",
+			_dummyId, _monsters.size(), (long long)targetId, sqrt((double)bestDis2));
+	}
+
 	if (bestDis2 <= _attackRange * _attackRange)
 	{
 		RequestAttackMonster(targetId);
@@ -608,8 +632,9 @@ void Dummy::HandleSpawnMonster(CPacket* packet)
 	MonsterInfo info;
 	FVector spawnLocation;
 	FRotator spawnRotator;
+	uint32 lastSeen = timeGetTime();
 	*packet >> info >> spawnLocation >> spawnRotator;
-	_monsters[info.MonsterID] = MonsterSnapshot{ spawnLocation, info.Type };
+	_monsters[info.MonsterID] = MonsterSnapshot{ spawnLocation, info.Type, lastSeen };
 }
 
 void Dummy::HandleMonterMvoe(CPacket* packet)
@@ -621,6 +646,7 @@ void Dummy::HandleMonterMvoe(CPacket* packet)
 	if (it != _monsters.end())
 	{
 		it->second.pos = currentPos;
+		it->second.lastSeen = timeGetTime();
 	}
 }
 

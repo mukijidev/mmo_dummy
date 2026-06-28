@@ -10,6 +10,7 @@ struct MonsterSnapshot
 {
 	FVector pos;
 	uint16 type;
+	uint32 lastSeen;
 };
 
 enum DummyState
