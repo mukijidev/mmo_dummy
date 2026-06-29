@@ -430,11 +430,11 @@ void Dummy::InFieldAct()
 		}
 	}
 
-	if (_dummyId < 3)
-	{
-		printf("[d%d] monsters=%d nearest=%lld dist=%.0f\n",
-			_dummyId, _monsters.size(), (long long)targetId, sqrt((double)bestDis2));
-	}
+	//if (_dummyId < 3)
+	//{
+	//	printf("[d%d] monsters=%d nearest=%lld dist=%.0f\n",
+	//		_dummyId, _monsters.size(), (long long)targetId, sqrt((double)bestDis2));
+	//}
 
 	if (bestDis2 <= _attackRange * _attackRange)
 	{
